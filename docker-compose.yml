@@ -1,0 +1,60 @@
+# key-management-service\docker-compose.yml
+
+services:
+  kms-mongodb:
+    image: mongo:6
+    container_name: kms-mongodb
+    restart: unless-stopped
+    ports:
+      - "27018:27017"
+    volumes:
+      - kms-mongo-data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval \"db.adminCommand('ping').ok\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - kms-network
+      - inspect-network
+
+  key-management-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: key-management-service:latest
+    container_name: key-management-service
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      kms-mongodb:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./logs:/app/logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - kms-network
+      - inspect-network
+
+volumes:
+  kms-mongo-data:
+
+networks:
+  kms-network:
+    external: true
+  inspect-network:
+    external: true
